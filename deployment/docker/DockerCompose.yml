@@ -1,0 +1,117 @@
+version: '3.8'
+
+services:
+  message_broker:
+    image: rabbitmq:3-management
+    container_name: message_broker
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: user
+      RABBITMQ_DEFAULT_PASS: password
+    networks:
+      - rtms_network
+
+  session_manager:
+    image: python:3.9-slim
+    container_name: session_manager
+    working_dir: /app/sessions
+    volumes:
+      - ./sessions:/app/sessions
+    command: python SessionManager.py
+    networks:
+      - rtms_network
+    depends_on:
+      - redis_cache
+
+  redis_cache:
+    image: redis:alpine
+    container_name: redis_cache
+    ports:
+      - "6379:6379"
+    networks:
+      - rtms_network
+
+  api_gateway:
+    image: python:3.9-slim
+    container_name: api_gateway
+    working_dir: /app/api
+    volumes:
+      - ./api:/app/api
+    command: python API.py
+    ports:
+      - "5000:5000"
+    networks:
+      - rtms_network
+    depends_on:
+      - message_broker
+      - session_manager
+
+  web_socket_gateway:
+    image: scala:2.12
+    container_name: web_socket_gateway
+    working_dir: /app/websocket_gateway
+    volumes:
+      - ./websocket_gateway:/app/websocket_gateway
+    command: scala Gateway.scala
+    ports:
+      - "8080:8080"
+    networks:
+      - rtms_network
+    depends_on:
+      - message_broker
+      - session_manager
+
+  relational_db:
+    image: postgres:13-alpine
+    container_name: relational_db
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: rtms_db
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - rtms_network
+
+  monitoring:
+    image: prom/prometheus
+    container_name: prometheus
+    volumes:
+      - ./monitoring/prometheus.yml:/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - rtms_network
+
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    networks:
+      - rtms_network
+    depends_on:
+      - prometheus
+
+  load_balancer:
+    image: nginx:alpine
+    container_name: nginx_lb
+    volumes:
+      - ./scalability/load_balancer/nginx.conf:/nginx/nginx.conf
+    ports:
+      - "80:80"
+    networks:
+      - rtms_network
+
+networks:
+  rtms_network:
+    driver: bridge
+
+volumes:
+  db-data:

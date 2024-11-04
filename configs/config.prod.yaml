@@ -1,0 +1,125 @@
+# Production Configuration for Real-Time Messaging System
+
+system:
+  environment: production
+  version: 1.0.0
+
+message_broker:
+  pubsub:
+    protocol: RabbitMQ
+    rabbitmq_url: amqps://rabbitmq-server:5671
+    retry_policy:
+      max_attempts: 5
+      delay: 1000 # milliseconds
+  queue:
+    type: priority_queue
+    max_size: 10000
+    message_timeout: 60 # seconds
+  routing:
+    strategy: direct
+    router_service: http://router-service:8080
+
+sessions:
+  manager:
+    session_timeout: 3600 # seconds
+    distributed_session_store: redis
+    redis_url: redis://redis-server:6379
+  presence:
+    update_interval: 30 # seconds
+  heartbeat:
+    interval: 10 # seconds
+    monitor_service: http://heartbeat-monitor-service:8080
+
+storage:
+  message_store:
+    type: relational_db
+    database_url: postgresql://db-server:5432/messaging_prod
+    max_connections: 100
+  media_storage:
+    provider: s3
+    s3_bucket: s3-bucket-prod
+    region: us-east-1
+
+notifications:
+  push:
+    fcm_service:
+      enabled: true
+      api_key: FCM_API_KEY
+    apns_service:
+      enabled: true
+      cert_path: /apns/cert
+      key_id: APNS_KEY_ID
+  email:
+    provider: sendgrid
+    api_key: SENDGRID_API_KEY
+
+auth:
+  jwt:
+    secret_key: jwt-secret-key
+    expiration: 3600 # seconds
+  oauth:
+    google_oauth:
+      client_id: GOOGLE_CLIENT_ID
+      client_secret: GOOGLE_CLIENT_SECRET
+    facebook_oauth:
+      client_id: FACEBOOK_CLIENT_ID
+      client_secret: FACEBOOK_CLIENT_SECRET
+
+api:
+  rest:
+    host: 0.0.0.0
+    port: 8080
+    rate_limiting:
+      enabled: true
+      max_requests_per_minute: 1000
+  websocket:
+    host: 0.0.0.0
+    port: 9090
+    max_connections: 10000
+
+monitoring:
+  prometheus:
+    exporter_url: http://prometheus-exporter:9091
+  grafana:
+    dashboard_url: http://grafana-server:3000
+
+scalability:
+  load_balancer:
+    type: nginx
+    nginx_config_path: /nginx/nginx.conf
+  auto_scaling:
+    enabled: true
+    strategy: horizontal
+    aws:
+      auto_scaling_group: messaging-prod-asg
+  cache:
+    provider: redis
+    redis_url: redis://redis-cache-server:6379
+
+security:
+  tls:
+    enabled: true
+    cert_path: /ssl/certs/server-cert.pem
+    key_path: /ssl/private/server-key.pem
+  encryption:
+    message_encryption_key: aes-256-encryption-key
+  firewall:
+    waf:
+      enabled: true
+      rules_path: /waf/rules.conf
+  ddos_protection:
+    enabled: true
+    service_url: http://ddos-protection-service:8080
+
+logging:
+  level: info
+  output: /var/log/messaging_system_prod.log
+  format: json
+
+deployment:
+  kubernetes:
+    namespace: messaging-prod
+    replicas: 5
+  docker:
+    image: messaging-system-prod:latest
+    container_registry: registry.website.com

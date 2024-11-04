@@ -1,0 +1,48 @@
+# Byte-compiled / optimized / DLL files for Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Scala and Java build files
+*.class
+*.jar
+*.war
+*.ear
+target/
+build/
+
+# Go build files
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Python virtual environments
+venv/
+env/
+*.egg-info/
+.eggs/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
+
+# Environment configuration files
+*.env
+.env.*
+
+# Log files
+*.log
+
+# Terraform files
+.terraform/
+*.tfstate
+*.tfstate.*
+
+# macOS-specific files
+.DS_Store
+
+# IDE-specific files
+.idea/
+.vscode/
+*.iml

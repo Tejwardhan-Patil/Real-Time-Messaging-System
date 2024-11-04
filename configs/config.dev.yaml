@@ -1,0 +1,117 @@
+# Development Configuration for Real-Time Messaging System
+
+environment: development
+
+# Message Broker Configuration
+message_broker:
+  pubsub:
+    protocol: rabbitmq  
+    rabbitmq_url: amqp://user:password@localhost:5672  
+  queue:
+    message_queue:
+      max_size: 10000
+      timeout: 30  # in seconds
+    priority_queue:
+      enabled: true
+      priority_levels: 5
+
+# User Sessions and Presence
+sessions:
+  session_manager:
+    timeout: 3600  # Session timeout in seconds
+    replication_enabled: true
+  presence_service:
+    status_check_interval: 60  # in seconds
+
+# Message Storage Configuration
+message_storage:
+  type: relational_db 
+  relational_db:
+    db_url: postgres://user:password@localhost:5432/messages
+    max_connections: 20
+  file_storage:
+    media_dir: /mnt/storage/media/
+
+# Notification Services
+notifications:
+  push_notifications:
+    fcm:
+      server_key: 'FCM_SERVER_KEY'
+    apns:
+      key_file: '/apns/key/file'
+      team_id: 'TEAM_ID'
+      key_id: 'KEY_ID'
+  web_notifications:
+    enabled: true
+  email_notifications:
+    provider: sendgrid
+    api_key: 'SENDGRID_API_KEY'
+
+# User Authentication and Authorization
+auth:
+  jwt:
+    secret_key: 'DEV_SECRET_KEY'
+    expiration: 3600  # in seconds
+  oauth2:
+    google:
+      client_id: 'GOOGLE_CLIENT_ID'
+      client_secret: 'GOOGLE_CLIENT_SECRET'
+    facebook:
+      app_id: 'FACEBOOK_APP_ID'
+      app_secret: 'FACEBOOK_APP_SECRET'
+
+# APIs and WebSocket Gateway
+api:
+  rest_api:
+    base_url: http://localhost:5000
+    port: 5000
+    logging: true
+  websocket_gateway:
+    url: ws://localhost:8080
+    max_connections: 1000
+
+# Monitoring and Logging Configuration
+monitoring:
+  prometheus:
+    enabled: true
+    endpoint: /metrics
+  logging:
+    level: debug
+    output: file
+    file_path: /var/log/rtms_dev.log
+
+# Scalability Settings
+scalability:
+  auto_scaling:
+    enabled: false
+  cache:
+    redis:
+      url: redis://localhost:6379
+      cache_ttl: 3600  # in seconds
+
+# Security Settings
+security:
+  encryption:
+    tls:
+      enabled: false
+  firewall:
+    waf:
+      enabled: true
+      rules_file: /waf/rules.yaml
+  ddos_protection:
+    enabled: true
+    rate_limit: 1000  # Requests per second
+
+# CI/CD Integration
+ci_cd:
+  github_actions:
+    ci_workflow: .github/workflows/CI.yml
+    cd_workflow: .github/workflows/CD.yml
+
+# Miscellaneous Settings
+misc:
+  debug_mode: true
+  max_threads: 4
+  allowed_origins:
+    - http://localhost
+    - http://127.0.0.1

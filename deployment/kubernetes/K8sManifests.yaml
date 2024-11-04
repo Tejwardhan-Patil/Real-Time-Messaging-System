@@ -1,0 +1,273 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rtms
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rtms-config
+  namespace: rtms
+data:
+  MESSAGE_BROKER_HOST: "broker.rtms.svc.cluster.local"
+  SESSION_STORE_HOST: "redis-session.rtms.svc.cluster.local"
+  NOTIFICATION_SERVICE_HOST: "notifications.rtms.svc.cluster.local"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: broker-deployment
+  namespace: rtms
+  labels:
+    app: message-broker
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: message-broker
+  template:
+    metadata:
+      labels:
+        app: message-broker
+    spec:
+      containers:
+        - name: publisher
+          image: website.com/rtms-broker-publisher:latest
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: rtms-config
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+        - name: subscriber
+          image: website.com/rtms-broker-subscriber:latest
+          ports:
+            - containerPort: 8081
+          envFrom:
+            - configMapRef:
+                name: rtms-config
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: broker
+  namespace: rtms
+spec:
+  selector:
+    app: message-broker
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: session-manager-deployment
+  namespace: rtms
+  labels:
+    app: session-manager
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: session-manager
+  template:
+    metadata:
+      labels:
+        app: session-manager
+    spec:
+      containers:
+        - name: session-manager
+          image: website.com/rtms-session-manager:latest
+          ports:
+            - containerPort: 8082
+          envFrom:
+            - configMapRef:
+                name: rtms-config
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: session-manager
+  namespace: rtms
+spec:
+  selector:
+    app: session-manager
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8082
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-service-deployment
+  namespace: rtms
+  labels:
+    app: notification-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: notification-service
+  template:
+    metadata:
+      labels:
+        app: notification-service
+    spec:
+      containers:
+        - name: notification-service
+          image: website.com/rtms-notifications:latest
+          ports:
+            - containerPort: 8083
+          envFrom:
+            - configMapRef:
+                name: rtms-config
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification-service
+  namespace: rtms
+spec:
+  selector:
+    app: notification-service
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8083
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: websocket-gateway-deployment
+  namespace: rtms
+  labels:
+    app: websocket-gateway
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: websocket-gateway
+  template:
+    metadata:
+      labels:
+        app: websocket-gateway
+    spec:
+      containers:
+        - name: websocket-gateway
+          image: website.com/rtms-websocket-gateway:latest
+          ports:
+            - containerPort: 8084
+          envFrom:
+            - configMapRef:
+                name: rtms-config
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "500m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: websocket-gateway
+  namespace: rtms
+spec:
+  selector:
+    app: websocket-gateway
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8084
+---
+apiVersion: autoscaling/v2beta2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: websocket-gateway-hpa
+  namespace: rtms
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: websocket-gateway-deployment
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 75
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: rtms-ingress
+  namespace: rtms
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  rules:
+    - host: rtms.website.com
+      http:
+        paths:
+          - path: /broker
+            pathType: Prefix
+            backend:
+              service:
+                name: broker
+                port:
+                  number: 80
+          - path: /session
+            pathType: Prefix
+            backend:
+              service:
+                name: session-manager
+                port:
+                  number: 80
+          - path: /notifications
+            pathType: Prefix
+            backend:
+              service:
+                name: notification-service
+                port:
+                  number: 80
+          - path: /gateway
+            pathType: Prefix
+            backend:
+              service:
+                name: websocket-gateway
+                port:
+                  number: 80
